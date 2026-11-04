@@ -214,3 +214,24 @@
   margin: 0 0 28px;
   text-align: center;
 }
+
+/* ... existing styles from previous step ... */
+
+/* NEW: Dual Input Layout for URL + Label */
+.dualInputRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* URL takes more space than Label */
+  gap: 8px;
+}
+
+.subInputGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile Adjustment for Dual Inputs */
+@media (max-width: 480px) {
+  .dualInputRow {
+    grid-template-columns: 1fr; /* Stack vertically on very small screens */
+  }
+}
