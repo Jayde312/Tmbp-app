@@ -299,7 +299,7 @@ export default function LiveChatWidget({
 
             <div className="lc-body">
               <p className="lc-message">
-                Hi there! You'll be chatting with <strong>{displayName}</strong>. Tap below to start the conversation.
+                Hi there! You'll be chatting with <strong>{displayName}</strong>. Tap below to start a conversation.
               </p>
             </div>
 
