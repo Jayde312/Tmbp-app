@@ -7,11 +7,15 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
+  // Community links
   const [whatsapp, setWhatsapp] = useState("");
   const [telegram, setTelegram] = useState("");
-  const [livechat, setLivechat] = useState("");
+
+  // Live chat links (two channels)
+  const [livechat, setLivechat] = useState("");             // Telegram live chat
+  const [livechatWhatsapp, setLivechatWhatsapp] = useState(""); // WhatsApp live chat
   const [agentName, setAgentName] = useState("");
-  
+
   // Visibility toggles
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [telegramEnabled, setTelegramEnabled] = useState(true);
@@ -29,13 +33,13 @@ export default function AdminPage() {
         setWhatsapp(data.whatsapp || "");
         setTelegram(data.telegram || "");
         setLivechat(data.livechat || "");
+        setLivechatWhatsapp(data.livechatWhatsapp || "");
         setAgentName(data.agentName || "");
-        
-        // Load visibility states (default to true if not yet present in DB)
+
         setWhatsappEnabled(data.whatsappEnabled !== false);
         setTelegramEnabled(data.telegramEnabled !== false);
         setLivechatEnabled(data.livechatEnabled !== false);
-        
+
         setLoading(false);
       });
   }, [authed]);
@@ -68,6 +72,7 @@ export default function AdminPage() {
         whatsapp,
         telegram,
         livechat,
+        livechatWhatsapp,
         agentName,
         whatsappEnabled,
         telegramEnabled,
@@ -92,7 +97,6 @@ export default function AdminPage() {
   const telegramColor = "#229ED9";
   const livechatColor = "#2dd4bf";
 
-  // --- Custom Toggle Switch Component ---
   const ToggleSwitch = ({
     checked,
     onChange,
@@ -131,6 +135,33 @@ export default function AdminPage() {
     </div>
   );
 
+  // Shared input styling
+  const inputStyle = (enabled: boolean): React.CSSProperties => ({
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: `1px solid ${line}`,
+    background: navy,
+    color: text,
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box",
+    opacity: enabled ? 1 : 0.5,
+    transition: "opacity 0.2s ease",
+  });
+
+  const labelStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    color: textMuted,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+    textTransform: "uppercase",
+    marginBottom: 6,
+  };
+
   // --- Login Screen ---
   if (!authed) {
     return (
@@ -155,7 +186,6 @@ export default function AdminPage() {
             border: `1px solid ${line}`,
           }}
         >
-          {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div
               style={{
@@ -385,21 +415,9 @@ export default function AdminPage() {
           </div>
         ) : (
           <form onSubmit={handleSave}>
-            {/* WhatsApp URL */}
+            {/* WhatsApp Group URL */}
             <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
+              <label style={labelStyle}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
@@ -422,37 +440,13 @@ export default function AdminPage() {
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="https://wa.link/..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: whatsappEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+                style={inputStyle(whatsappEnabled)}
               />
             </div>
 
-            {/* Telegram URL */}
+            {/* Telegram Channel URL */}
             <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
+              <label style={labelStyle}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
@@ -475,35 +469,32 @@ export default function AdminPage() {
                 value={telegram}
                 onChange={(e) => setTelegram(e.target.value)}
                 placeholder="https://t.me/..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: telegramEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+                style={inputStyle(telegramEnabled)}
               />
             </div>
 
-            {/* Live Chat URL */}
-            <div style={{ marginBottom: 16 }}>
+            {/* ===== LIVE CHAT SECTION ===== */}
+            <div
+              style={{
+                border: `1px solid ${line}`,
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 16,
+                background: "rgba(45, 212, 191, 0.03)",
+              }}
+            >
+              {/* Section header with master toggle */}
               <label
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  color: textMuted,
+                  color: livechatColor,
                   fontSize: 11,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   letterSpacing: "1.5px",
                   textTransform: "uppercase",
-                  marginBottom: 6,
+                  marginBottom: 12,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -515,7 +506,7 @@ export default function AdminPage() {
                       background: livechatColor,
                     }}
                   />
-                  Live Chat URL
+                  Live Chat Widget
                 </div>
                 <ToggleSwitch
                   checked={livechatEnabled}
@@ -523,71 +514,108 @@ export default function AdminPage() {
                   color={livechatColor}
                 />
               </label>
-              <input
-                type="text"
-                value={livechat}
-                onChange={(e) => setLivechat(e.target.value)}
-                placeholder="https://t.me/... (live chat bot or group)"
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: livechatEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
-              />
-            </div>
 
-            {/* Agent Name */}
-            <div style={{ marginBottom: 20 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                <span
+              {/* Live Chat Telegram URL */}
+              <div style={{ marginBottom: 12 }}>
+                <label
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: livechatColor,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    color: textMuted,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "1.2px",
+                    textTransform: "uppercase",
+                    marginBottom: 5,
                   }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: telegramColor,
+                    }}
+                  />
+                  Live Chat Telegram URL
+                </label>
+                <input
+                  type="text"
+                  value={livechat}
+                  onChange={(e) => setLivechat(e.target.value)}
+                  placeholder="https://t.me/..."
+                  style={inputStyle(livechatEnabled)}
                 />
-                Agent Name
-              </label>
-              <input
-                type="text"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-                placeholder="Enter live chat agent name"
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: livechatEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
-              />
+              </div>
+
+              {/* Live Chat WhatsApp URL */}
+              <div style={{ marginBottom: 12 }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    color: textMuted,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "1.2px",
+                    textTransform: "uppercase",
+                    marginBottom: 5,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: whatsappColor,
+                    }}
+                  />
+                  Live Chat WhatsApp URL
+                </label>
+                <input
+                  type="text"
+                  value={livechatWhatsapp}
+                  onChange={(e) => setLivechatWhatsapp(e.target.value)}
+                  placeholder="https://wa.me/..."
+                  style={inputStyle(livechatEnabled)}
+                />
+              </div>
+
+              {/* Agent Name */}
+              <div>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    color: textMuted,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "1.2px",
+                    textTransform: "uppercase",
+                    marginBottom: 5,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: livechatColor,
+                    }}
+                  />
+                  Agent Name
+                </label>
+                <input
+                  type="text"
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value)}
+                  placeholder="Enter live chat agent name"
+                  style={inputStyle(livechatEnabled)}
+                />
+              </div>
             </div>
 
             {/* Save Button */}
@@ -612,7 +640,6 @@ export default function AdminPage() {
               {saving ? "Updating..." : "Save Changes"}
             </button>
 
-            {/* Status */}
             {saveMessage && (
               <div
                 style={{
