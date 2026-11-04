@@ -1,4 +1,4 @@
-/* styles.module.css */
+/* Base Layout */
 .container {
   min-height: 100dvh;
   background-color: #111827; /* navy */
@@ -39,7 +39,7 @@
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #25D366; /* success */
+  color: #25D366; 
 }
 
 .dot {
@@ -51,7 +51,7 @@
 
 .mainTitle {
   font-family: var(--font-display), serif;
-  color: #e5e7eb; /* text */
+  color: #e5e7eb; 
   font-size: 22px;
   margin: 0;
   font-weight: 600;
@@ -60,7 +60,7 @@
 .lockBtn {
   background: transparent;
   border: 1px solid #374151;
-  color: #9ca3af; /* textMuted */
+  color: #9ca3af; 
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 11px;
@@ -80,64 +80,161 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px; /* Space between Platform Cards */
 }
 
+/* --- NEW: Collapsible Platform Card Styles --- */
+.platformCard {
+  background-color: #111827; /* Darker inner bg */
+  border: 1px solid #374151;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.platformCard.active {
+  border-color: #4b5563; /* Lighter border when open */
+}
+
+.platformHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.platformHeader:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.platformInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.platformIconWrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.platformDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.platformName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.platformStatus {
+  font-size: 11px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusDotSmall {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chevron {
+  width: 16px;
+  height: 16px;
+  fill: #9ca3af;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.platformCard.active .chevron {
+  transform: rotate(180deg);
+}
+
+/* Content Area inside Accordion */
+.platformContent {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease-out, padding 0.3s ease;
+  padding: 0 16px; /* Horizontal padding only initially */
+}
+
+.platformCard.active .platformContent {
+  max-height: 500px; /* Arbitrary large enough value */
+  opacity: 1;
+  padding: 0 16px 16px 16px; /* Add bottom padding when open */
+  border-top: 1px solid #374151;
+}
+
+/* Inputs inside Accordion */
 .inputGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.labelRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
 .labelText {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   color: #9ca3af;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
-}
-
-.inputWrapper {
-  position: relative;
 }
 
 .textInput {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid #374151;
-  background-color: #111827;
+  background-color: #1a2234;
   color: #e5e7eb;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
   box-sizing: border-box;
-  transition: opacity 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s;
 }
 
 .textInput:focus {
-  border-color: #34d399; /* gold */
+  border-color: #34d399; 
 }
 
 .textInput.disabled {
   opacity: 0.5;
   pointer-events: none;
+  background-color: #111827;
 }
 
+/* Toggle Switch in Header */
+.toggleContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Submit Button */
 .submitBtn {
   width: 100%;
   padding: 14px;
   border-radius: 8px;
   border: none;
-  background-color: #34d399; /* gold */
+  background-color: #34d399; 
   color: #111827;
   font-weight: 800;
   font-size: 13px;
@@ -145,6 +242,7 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: opacity 0.2s;
+  margin-top: 8px;
 }
 
 .submitBtn:disabled {
@@ -213,25 +311,4 @@
   font-size: 13px;
   margin: 0 0 28px;
   text-align: center;
-}
-
-/* ... existing styles from previous step ... */
-
-/* NEW: Dual Input Layout for URL + Label */
-.dualInputRow {
-  display: grid;
-  grid-template-columns: 2fr 1fr; /* URL takes more space than Label */
-  gap: 8px;
-}
-
-.subInputGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Mobile Adjustment for Dual Inputs */
-@media (max-width: 480px) {
-  .dualInputRow {
-    grid-template-columns: 1fr; /* Stack vertically on very small screens */
-  }
 }
