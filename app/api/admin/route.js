@@ -2,45 +2,70 @@ import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import crypto from "crypto";
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = neon(process.env.DATABASE_URL!);
 
-// Ensures the table exists and has all required columns.
+// Ensures the table exists and has all required columns (including new secondary links).
 async function ensureTable() {
   await sql`
     CREATE TABLE IF NOT EXISTS site_links (
       id INT PRIMARY KEY DEFAULT 1,
+      
+      -- Primary Links
       whatsapp_url TEXT NOT NULL DEFAULT '',
       telegram_url TEXT NOT NULL DEFAULT '',
       livechat_url TEXT NOT NULL DEFAULT '',
       agent_name TEXT NOT NULL DEFAULT '',
+      
+      -- Primary Toggles
       whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,
       telegram_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-      livechat_enabled BOOLEAN NOT NULL DEFAULT TRUE
+      livechat_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+
+      -- NEW: Secondary Links
+      whatsapp_url_2 TEXT NOT NULL DEFAULT '',
+      telegram_url_2 TEXT NOT NULL DEFAULT '',
+      
+      -- NEW: Secondary Toggles (Default to FALSE so they don't appear until configured)
+      whatsapp_enabled_2 BOOLEAN NOT NULL DEFAULT FALSE,
+      telegram_enabled_2 BOOLEAN NOT NULL DEFAULT FALSE
     )
   `;
 
-  // Backfill: add columns if the table was created before this update
+  // Backfill: Add primary columns if missing (for older tables)
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS livechat_url TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS agent_name TEXT NOT NULL DEFAULT ''`;
-  
-  // Backfill the new toggle columns
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS livechat_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
+
+  // Backfill: Add NEW secondary columns if missing
+  await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS whatsapp_url_2 TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS telegram_url_2 TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS whatsapp_enabled_2 BOOLEAN NOT NULL DEFAULT FALSE`;
+  await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS telegram_enabled_2 BOOLEAN NOT NULL DEFAULT FALSE`;
   
   // Clean up unused columns from previous versions
   await sql`ALTER TABLE site_links DROP COLUMN IF EXISTS whatsapp_number`;
   await sql`ALTER TABLE site_links DROP COLUMN IF EXISTS telegram_username`;
 }
 
-function isAuthed(req) {
-  const cookie = req.cookies.get("admin_session");
-  if (!cookie?.value) return false;
-  return safeCompare(cookie.value, process.env.ADMIN_PASSWORD || "");
+function isAuthed(req: Request): boolean {
+  const cookieHeader = req.headers.get("cookie");
+  if (!cookieHeader) return false;
+  
+  // Simple parse for admin_session cookie
+  const cookies = Object.fromEntries(
+    cookieHeader.split("; ").map(c => c.split("="))
+  );
+  
+  const sessionValue = cookies["admin_session"];
+  if (!sessionValue) return false;
+  
+  return safeCompare(sessionValue, process.env.ADMIN_PASSWORD || "");
 }
 
 // Constant-time string comparison.
-function safeCompare(a, b) {
+function safeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
   if (bufA.length !== bufB.length) return false;
@@ -48,12 +73,12 @@ function safeCompare(a, b) {
 }
 
 // Very small in-memory rate limiter
-const attempts = new Map(); 
+const attempts = new Map<string, { count: number; resetAt: number }>(); 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60_000;
 
-function isRateLimited(req) {
-  const ip = req.headers.get("x-forwarded-for") || "unknown";
+function isRateLimited(req: Request): boolean {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
   const now = Date.now();
   const entry = attempts.get(ip);
 
@@ -66,8 +91,8 @@ function isRateLimited(req) {
   return entry.count > MAX_ATTEMPTS;
 }
 
-function isValidUrl(value) {
-  if (value === "") return true;
+function isValidUrl(value: string | undefined | null): boolean {
+  if (!value || value === "") return true; // Empty is allowed (means disabled/unset)
   if (typeof value !== "string" || value.length > 2048) return false;
   try {
     const u = new URL(value);
@@ -77,7 +102,7 @@ function isValidUrl(value) {
   }
 }
 
-function isValidHandle(value) {
+function isValidHandle(value: string | undefined | null): boolean {
   if (typeof value !== "string") return false;
   if (value.length > 100) return false;
   return !/[<>]/.test(value);
@@ -95,19 +120,31 @@ export async function GET() {
         agent_name,
         whatsapp_enabled,
         telegram_enabled,
-        livechat_enabled
+        livechat_enabled,
+        -- New Fields
+        whatsapp_url_2,
+        telegram_url_2,
+        whatsapp_enabled_2,
+        telegram_enabled_2
       FROM site_links WHERE id = 1
     `;
     const row = rows[0];
+    
     return NextResponse.json({
+      // Primary Data
       whatsapp: row?.whatsapp_url ?? "",
       telegram: row?.telegram_url ?? "",
       livechat: row?.livechat_url ?? "",
       agentName: row?.agent_name ?? "",
-      // Return the new boolean flags (default to true if somehow null)
       whatsappEnabled: row?.whatsapp_enabled ?? true,
       telegramEnabled: row?.telegram_enabled ?? true,
       livechatEnabled: row?.livechat_enabled ?? true,
+      
+      // Secondary Data (New)
+      whatsappSecondary: row?.whatsapp_url_2 ?? "",
+      telegramSecondary: row?.telegram_url_2 ?? "",
+      whatsappSecondaryEnabled: row?.whatsapp_enabled_2 ?? false,
+      telegramSecondaryEnabled: row?.telegram_enabled_2 ?? false,
     });
   } catch (err) {
     console.error("GET /site-links failed:", err);
@@ -119,8 +156,8 @@ export async function GET() {
 }
 
 // POST: log in or update links
-export async function POST(req) {
-  let body;
+export async function POST(req: Request) {
+  let body: any;
   try {
     body = await req.json();
   } catch {
@@ -143,7 +180,7 @@ export async function POST(req) {
       const res = NextResponse.json({ success: true });
       res.cookies.set("admin_session", body.password, {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
         maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -158,37 +195,58 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Not authorized" }, { status: 401 });
     }
 
+    // --- Extract Primary Fields ---
     const whatsapp = body.whatsapp;
     const telegram = body.telegram;
     const livechat = body.livechat ?? body.livechat_url ?? "";
     const agentName = body.agentName ?? body.agent_name ?? "";
-
-    // Extract boolean flags, default to true if undefined
+    
     const whatsappEnabled = body.whatsappEnabled ?? true;
     const telegramEnabled = body.telegramEnabled ?? true;
     const livechatEnabled = body.livechatEnabled ?? true;
 
-    // Validate all fields including the new booleans
+    // --- Extract Secondary Fields (New) ---
+    const whatsappSecondary = body.whatsappSecondary ?? "";
+    const telegramSecondary = body.telegramSecondary ?? "";
+    const whatsappSecondaryEnabled = body.whatsappSecondaryEnabled ?? false;
+    const telegramSecondaryEnabled = body.telegramSecondaryEnabled ?? false;
+
+    // --- Validation ---
+    
+    // Type checks
     if (
       typeof whatsapp !== "string" ||
       typeof telegram !== "string" ||
       typeof livechat !== "string" ||
       typeof agentName !== "string" ||
+      typeof whatsappSecondary !== "string" ||
+      typeof telegramSecondary !== "string" ||
       typeof whatsappEnabled !== "boolean" ||
       typeof telegramEnabled !== "boolean" ||
-      typeof livechatEnabled !== "boolean"
+      typeof livechatEnabled !== "boolean" ||
+      typeof whatsappSecondaryEnabled !== "boolean" ||
+      typeof telegramSecondaryEnabled !== "boolean"
     ) {
-      return NextResponse.json({ success: false, error: "Invalid payload" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Invalid payload types" }, { status: 400 });
     }
+
+    // URL Validity Checks
     if (!isValidUrl(whatsapp) || !isValidUrl(telegram) || !isValidUrl(livechat)) {
-      return NextResponse.json({ success: false, error: "Invalid URL" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Invalid primary URL format" }, { status: 400 });
     }
+    
+    if (!isValidUrl(whatsappSecondary) || !isValidUrl(telegramSecondary)) {
+      return NextResponse.json({ success: false, error: "Invalid secondary URL format" }, { status: 400 });
+    }
+
     if (!isValidHandle(agentName)) {
       return NextResponse.json({ success: false, error: "Invalid agent name" }, { status: 400 });
     }
 
     try {
       await ensureTable();
+      
+      // Insert or Update all fields including the new secondary ones
       await sql`
         INSERT INTO site_links (
           id, 
@@ -198,9 +256,28 @@ export async function POST(req) {
           agent_name,
           whatsapp_enabled,
           telegram_enabled,
-          livechat_enabled
+          livechat_enabled,
+          -- New Columns
+          whatsapp_url_2,
+          telegram_url_2,
+          whatsapp_enabled_2,
+          telegram_enabled_2
         )
-        VALUES (1, ${whatsapp}, ${telegram}, ${livechat}, ${agentName}, ${whatsappEnabled}, ${telegramEnabled}, ${livechatEnabled})
+        VALUES (
+          1, 
+          ${whatsapp}, 
+          ${telegram}, 
+          ${livechat}, 
+          ${agentName},
+          ${whatsappEnabled},
+          ${telegramEnabled},
+          ${livechatEnabled},
+          -- New Values
+          ${whatsappSecondary},
+          ${telegramSecondary},
+          ${whatsappSecondaryEnabled},
+          ${telegramSecondaryEnabled}
+        )
         ON CONFLICT (id) DO UPDATE
         SET 
             whatsapp_url = EXCLUDED.whatsapp_url,
@@ -209,7 +286,12 @@ export async function POST(req) {
             agent_name = EXCLUDED.agent_name,
             whatsapp_enabled = EXCLUDED.whatsapp_enabled,
             telegram_enabled = EXCLUDED.telegram_enabled,
-            livechat_enabled = EXCLUDED.livechat_enabled
+            livechat_enabled = EXCLUDED.livechat_enabled,
+            -- Update New Columns
+            whatsapp_url_2 = EXCLUDED.whatsapp_url_2,
+            telegram_url_2 = EXCLUDED.telegram_url_2,
+            whatsapp_enabled_2 = EXCLUDED.whatsapp_enabled_2,
+            telegram_enabled_2 = EXCLUDED.telegram_enabled_2
       `;
       return NextResponse.json({ success: true });
     } catch (err) {
