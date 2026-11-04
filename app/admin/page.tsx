@@ -1,20 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import styles from "./styles.module.css";
+import styles from "./styles.module.css"; // Ensure you have the CSS module defined below
 
-// --- Types & Interfaces ---
 interface SiteLinksData {
   whatsapp: string;
   telegram: string;
   livechat: string;
   agentName: string;
+  whatsappLabel: string;
+  telegramLabel: string;
   whatsappEnabled: boolean;
   telegramEnabled: boolean;
   livechatEnabled: boolean;
-  // Secondary fields
+  
   whatsappSecondary: string;
   telegramSecondary: string;
+  whatsappSecondaryLabel: string;
+  telegramSecondaryLabel: string;
   whatsappSecondaryEnabled: boolean;
   telegramSecondaryEnabled: boolean;
 }
@@ -73,36 +76,46 @@ function ToggleSwitch({
   );
 }
 
-function LabeledInput({
-  id,
+/**
+ * Enhanced Input Field that supports both Value and Label inputs
+ */
+function LabeledInputGroup({
+  idPrefix,
+  platformName,
+  url,
+  onUrlChange,
   label,
-  value,
-  onChange,
-  placeholder,
+  onLabelChange,
   enabled,
   onToggleChange,
   toggleColor,
-  subLabel
+  subLabelHint,
+  placeholderUrl,
+  placeholderLabel
 }: {
-  id: string;
+  idPrefix: string;
+  platformName: string;
+  url: string;
+  onUrlChange: (v: string) => void;
   label: string;
-  value: string;
-  onChange: (val: string) => void;
-  placeholder: string;
+  onLabelChange: (v: string) => void;
   enabled?: boolean;
-  onToggleChange?: (val: boolean) => void;
+  onToggleChange?: (v: boolean) => void;
   toggleColor?: string;
-  subLabel?: string; // For "Primary" vs "Secondary" hints
+  subLabelHint?: string;
+  placeholderUrl: string;
+  placeholderLabel: string;
 }) {
   const isDisabledVisual = enabled !== undefined && !enabled;
 
   return (
     <div className={styles.inputGroup}>
+      {/* Header Row with Platform Name and Toggle */}
       <div className={styles.labelRow}>
-        <label htmlFor={id} className={styles.labelText}>
+        <label className={styles.labelText}>
           {toggleColor && <span className={styles.dot} style={{ backgroundColor: toggleColor }} />}
-          <span>{label}</span>
-          {subLabel && <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 4 }}>{subLabel}</span>}
+          <span>{platformName}</span>
+          {subLabelHint && <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 4 }}>{subLabelHint}</span>}
         </label>
         {onToggleChange && toggleColor && (
           <ToggleSwitch 
@@ -112,20 +125,38 @@ function LabeledInput({
           />
         )}
       </div>
-      <input
-        id={id}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`${styles.textInput} ${isDisabledVisual ? styles.disabled : ""}`}
-        disabled={isDisabledVisual}
-      />
+
+      {/* Two Inputs Side-by-Side or Stacked depending on screen size */}
+      <div className={styles.dualInputRow}>
+        <div className={styles.subInputGroup}>
+          <input
+            id={`${idPrefix}-url`}
+            type="text"
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder={placeholderUrl}
+            className={`${styles.textInput} ${isDisabledVisual ? styles.disabled : ""}`}
+            disabled={isDisabledVisual}
+          />
+        </div>
+        
+        <div className={styles.subInputGroup}>
+          <input
+            id={`${idPrefix}-label`}
+            type="text"
+            value={label}
+            onChange={(e) => onLabelChange(e.target.value)}
+            placeholder={placeholderLabel}
+            className={`${styles.textInput} ${isDisabledVisual ? styles.disabled : ""}`}
+            disabled={isDisabledVisual}
+            title="Button Text / Link Label"
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-// Helper for Section Headers
 function SectionDivider({ title }: { title: string }) {
   return (
     <div className={styles.sectionHeader}>
@@ -151,11 +182,16 @@ export default function AdminPage() {
     telegram: "",
     livechat: "",
     agentName: "",
+    whatsappLabel: "Join Main Group",
+    telegramLabel: "Public Channel",
     whatsappEnabled: true,
     telegramEnabled: true,
     livechatEnabled: true,
+    
     whatsappSecondary: "",
     telegramSecondary: "",
+    whatsappSecondaryLabel: "VIP / Backup",
+    telegramSecondaryLabel: "Private Signals",
     whatsappSecondaryEnabled: false,
     telegramSecondaryEnabled: false,
   });
@@ -173,11 +209,16 @@ export default function AdminPage() {
           telegram: data.telegram || "",
           livechat: data.livechat || "",
           agentName: data.agentName || "",
+          whatsappLabel: data.whatsappLabel || "Join Main Group",
+          telegramLabel: data.telegramLabel || "Public Channel",
           whatsappEnabled: data.whatsappEnabled ?? true,
           telegramEnabled: data.telegramEnabled ?? true,
           livechatEnabled: data.livechatEnabled ?? true,
+          
           whatsappSecondary: data.whatsappSecondary || "",
           telegramSecondary: data.telegramSecondary || "",
+          whatsappSecondaryLabel: data.whatsappSecondaryLabel || "VIP / Backup",
+          telegramSecondaryLabel: data.telegramSecondaryLabel || "Private Signals",
           whatsappSecondaryEnabled: data.whatsappSecondaryEnabled ?? false,
           telegramSecondaryEnabled: data.telegramSecondaryEnabled ?? false,
         });
@@ -323,81 +364,111 @@ export default function AdminPage() {
               {/* ================= GROUP 1: WHATSAPP ================= */}
               <SectionDivider title="WhatsApp Channels" />
               <div className={styles.groupContainer}>
-                <LabeledInput
-                  id="primary-whatsapp"
-                  label="Primary Group"
-                  subLabel="(Main)"
-                  value={formData.whatsapp}
-                  onChange={(v) => updateField('whatsapp', v)}
-                  placeholder="https://wa.link/..."
+                
+                {/* Primary WhatsApp */}
+                <LabeledInputGroup
+                  idPrefix="wa-primary"
+                  platformName="Primary Group"
+                  url={formData.whatsapp}
+                  onUrlChange={(v) => updateField('whatsapp', v)}
+                  label={formData.whatsappLabel}
+                  onLabelChange={(v) => updateField('whatsappLabel', v)}
                   enabled={formData.whatsappEnabled}
                   onToggleChange={(v) => updateField('whatsappEnabled', v)}
                   toggleColor={COLORS.WHATSAPP}
+                  placeholderUrl="https://wa.link/..."
+                  placeholderLabel="Button Text (e.g. Join Now)"
                 />
 
-                <LabeledInput
-                  id="secondary-whatsapp"
-                  label="Secondary Group"
-                  subLabel="(Backup/VIP)"
-                  value={formData.whatsappSecondary}
-                  onChange={(v) => updateField('whatsappSecondary', v)}
-                  placeholder="https://wa.link/... (Optional)"
+                {/* Secondary WhatsApp */}
+                <LabeledInputGroup
+                  idPrefix="wa-secondary"
+                  platformName="Secondary Group"
+                  subLabelHint="(Optional)"
+                  url={formData.whatsappSecondary}
+                  onUrlChange={(v) => updateField('whatsappSecondary', v)}
+                  label={formData.whatsappSecondaryLabel}
+                  onLabelChange={(v) => updateField('whatsappSecondaryLabel', v)}
                   enabled={formData.whatsappSecondaryEnabled}
                   onToggleChange={(v) => updateField('whatsappSecondaryEnabled', v)}
                   toggleColor={COLORS.WHATSAPP}
+                  placeholderUrl="https://wa.link/... (Backup/VIP)"
+                  placeholderLabel="Alt Text (e.g. VIP Access)"
                 />
               </div>
 
               {/* ================= GROUP 2: TELEGRAM ================= */}
               <SectionDivider title="Telegram Channels" />
               <div className={styles.groupContainer}>
-                 <LabeledInput
-                  id="primary-telegram"
-                  label="Primary Channel"
-                  subLabel="(Public)"
-                  value={formData.telegram}
-                  onChange={(v) => updateField('telegram', v)}
-                  placeholder="https://t.me/..."
+                 
+                {/* Primary Telegram */}
+                <LabeledInputGroup
+                  idPrefix="tg-primary"
+                  platformName="Primary Channel"
+                  url={formData.telegram}
+                  onUrlChange={(v) => updateField('telegram', v)}
+                  label={formData.telegramLabel}
+                  onLabelChange={(v) => updateField('telegramLabel', v)}
                   enabled={formData.telegramEnabled}
                   onToggleChange={(v) => updateField('telegramEnabled', v)}
                   toggleColor={COLORS.TELEGRAM}
+                  placeholderUrl="https://t.me/..."
+                  placeholderLabel="Button Text (e.g. Public Feed)"
                 />
 
-                <LabeledInput
-                  id="secondary-telegram"
-                  label="Secondary Channel"
-                  subLabel="(Private/Beta)"
-                  value={formData.telegramSecondary}
-                  onChange={(v) => updateField('telegramSecondary', v)}
-                  placeholder="https://t.me/... (Optional)"
+                {/* Secondary Telegram */}
+                <LabeledInputGroup
+                  idPrefix="tg-secondary"
+                  platformName="Secondary Channel"
+                  subLabelHint="(Optional)"
+                  url={formData.telegramSecondary}
+                  onUrlChange={(v) => updateField('telegramSecondary', v)}
+                  label={formData.telegramSecondaryLabel}
+                  onLabelChange={(v) => updateField('telegramSecondaryLabel', v)}
                   enabled={formData.telegramSecondaryEnabled}
                   onToggleChange={(v) => updateField('telegramSecondaryEnabled', v)}
                   toggleColor={COLORS.TELEGRAM}
+                  placeholderUrl="https://t.me/... (Private/Beta)"
+                  placeholderLabel="Alt Text (e.g. Pro Signals)"
                 />
               </div>
 
               {/* ================= GROUP 3: SUPPORT / LIVE CHAT ================= */}
               <SectionDivider title="Direct Support" />
               <div className={styles.groupContainer}>
-                <LabeledInput
-                  id="livechat-url"
-                  label="Live Chat Link"
-                  value={formData.livechat}
-                  onChange={(v) => updateField('livechat', v)}
-                  placeholder="https://t.me/... or external link"
-                  enabled={formData.livechatEnabled}
-                  onToggleChange={(v) => updateField('livechatEnabled', v)}
-                  toggleColor={COLORS.LIVECHAT}
-                />
+                <div className={styles.inputGroup}>
+                   <div className={styles.labelRow}>
+                    <label className={styles.labelText}>
+                      <span className={styles.dot} style={{ backgroundColor: COLORS.LIVECHAT }} />
+                      Live Chat Link
+                    </label>
+                    <ToggleSwitch 
+                        checked={formData.livechatEnabled} 
+                        onChange={(v) => updateField('livechatEnabled', v)} 
+                        color={COLORS.LIVECHAT} 
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.livechat}
+                    onChange={(e) => updateField('livechat', e.target.value)}
+                    placeholder="https://t.me/... or external link"
+                    className={`${styles.textInput} ${!formData.livechatEnabled ? styles.disabled : ""}`}
+                    disabled={!formData.livechatEnabled}
+                  />
+                </div>
 
-                <LabeledInput
-                  id="agent-name"
-                  label="Agent Display Name"
-                  value={formData.agentName}
-                  onChange={(v) => updateField('agentName', v)}
-                  placeholder="e.g., Sarah from Support"
-                  enabled={formData.livechatEnabled} 
-                />
+                <div className={styles.inputGroup}>
+                   <label className={styles.labelText}>Agent Display Name</label>
+                  <input
+                    type="text"
+                    value={formData.agentName}
+                    onChange={(e) => updateField('agentName', e.target.value)}
+                    placeholder="e.g., Sarah from Support"
+                    className={`${styles.textInput} ${!formData.livechatEnabled ? styles.disabled : ""}`}
+                    disabled={!formData.livechatEnabled}
+                  />
+                </div>
               </div>
 
               {/* Submit Area */}
