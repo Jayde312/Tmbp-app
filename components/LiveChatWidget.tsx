@@ -294,7 +294,7 @@ export default function LiveChatWidget({
 
             <div className="lc-body">
               <p className="lc-message">
-                Chat with <strong>{displayName}</strong> on.
+                Hi there! You'll be chatting with <strong>{displayName}</strong> Tap below to start the conversation on
               </p>
             </div>
 
@@ -307,7 +307,7 @@ export default function LiveChatWidget({
                 onClick={() => setIsOpen(false)}
               >
                 <TelegramIcon size={18} />
-                <span>Message on Telegram</span>
+                <span>Telegram</span>
               </a>
             )}
 
@@ -320,7 +320,7 @@ export default function LiveChatWidget({
                 onClick={() => setIsOpen(false)}
               >
                 <WhatsAppIcon size={18} />
-                <span>Message on WhatsApp</span>
+                <span> WhatsApp</span>
               </a>
             )}
           </div>
