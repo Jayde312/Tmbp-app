@@ -12,6 +12,7 @@ async function ensureTable() {
       whatsapp_url TEXT NOT NULL DEFAULT '',
       telegram_url TEXT NOT NULL DEFAULT '',
       livechat_url TEXT NOT NULL DEFAULT '',
+      livechat_whatsapp_url TEXT NOT NULL DEFAULT '',
       agent_name TEXT NOT NULL DEFAULT '',
       whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,
       telegram_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -19,15 +20,15 @@ async function ensureTable() {
     )
   `;
 
-  // Backfill: add columns if the table was created before this update
+  // Backfill columns if the table was created before this update
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS livechat_url TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS livechat_whatsapp_url TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS agent_name TEXT NOT NULL DEFAULT ''`;
-  
-  // Backfill the new toggle columns
+
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
   await sql`ALTER TABLE site_links ADD COLUMN IF NOT EXISTS livechat_enabled BOOLEAN NOT NULL DEFAULT TRUE`;
-  
+
   // Clean up unused columns from previous versions
   await sql`ALTER TABLE site_links DROP COLUMN IF EXISTS whatsapp_number`;
   await sql`ALTER TABLE site_links DROP COLUMN IF EXISTS telegram_username`;
@@ -39,7 +40,6 @@ function isAuthed(req) {
   return safeCompare(cookie.value, process.env.ADMIN_PASSWORD || "");
 }
 
-// Constant-time string comparison.
 function safeCompare(a, b) {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
@@ -47,8 +47,7 @@ function safeCompare(a, b) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-// Very small in-memory rate limiter
-const attempts = new Map(); 
+const attempts = new Map();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60_000;
 
@@ -83,15 +82,16 @@ function isValidHandle(value) {
   return !/[<>]/.test(value);
 }
 
-// GET: fetch current links (public — used by homepage & admin panel)
+// GET: fetch current links (used by admin panel; homepage reads DB directly)
 export async function GET() {
   try {
     await ensureTable();
     const rows = await sql`
-      SELECT 
-        whatsapp_url, 
-        telegram_url, 
-        livechat_url, 
+      SELECT
+        whatsapp_url,
+        telegram_url,
+        livechat_url,
+        livechat_whatsapp_url,
         agent_name,
         whatsapp_enabled,
         telegram_enabled,
@@ -103,14 +103,14 @@ export async function GET() {
       whatsapp: row?.whatsapp_url ?? "",
       telegram: row?.telegram_url ?? "",
       livechat: row?.livechat_url ?? "",
+      livechatWhatsapp: row?.livechat_whatsapp_url ?? "",
       agentName: row?.agent_name ?? "",
-      // Return the new boolean flags (default to true if somehow null)
       whatsappEnabled: row?.whatsapp_enabled ?? true,
       telegramEnabled: row?.telegram_enabled ?? true,
       livechatEnabled: row?.livechat_enabled ?? true,
     });
   } catch (err) {
-    console.error("GET /site-links failed:", err);
+    console.error("GET /api/admin failed:", err);
     return NextResponse.json(
       { success: false, error: "Failed to fetch links" },
       { status: 500 }
@@ -146,7 +146,7 @@ export async function POST(req) {
         secure: true,
         sameSite: "strict",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
       });
       return res;
     }
@@ -160,19 +160,19 @@ export async function POST(req) {
 
     const whatsapp = body.whatsapp;
     const telegram = body.telegram;
-    const livechat = body.livechat ?? body.livechat_url ?? "";
-    const agentName = body.agentName ?? body.agent_name ?? "";
+    const livechat = body.livechat ?? "";
+    const livechatWhatsapp = body.livechatWhatsapp ?? "";
+    const agentName = body.agentName ?? "";
 
-    // Extract boolean flags, default to true if undefined
     const whatsappEnabled = body.whatsappEnabled ?? true;
     const telegramEnabled = body.telegramEnabled ?? true;
     const livechatEnabled = body.livechatEnabled ?? true;
 
-    // Validate all fields including the new booleans
     if (
       typeof whatsapp !== "string" ||
       typeof telegram !== "string" ||
       typeof livechat !== "string" ||
+      typeof livechatWhatsapp !== "string" ||
       typeof agentName !== "string" ||
       typeof whatsappEnabled !== "boolean" ||
       typeof telegramEnabled !== "boolean" ||
@@ -180,7 +180,12 @@ export async function POST(req) {
     ) {
       return NextResponse.json({ success: false, error: "Invalid payload" }, { status: 400 });
     }
-    if (!isValidUrl(whatsapp) || !isValidUrl(telegram) || !isValidUrl(livechat)) {
+    if (
+      !isValidUrl(whatsapp) ||
+      !isValidUrl(telegram) ||
+      !isValidUrl(livechat) ||
+      !isValidUrl(livechatWhatsapp)
+    ) {
       return NextResponse.json({ success: false, error: "Invalid URL" }, { status: 400 });
     }
     if (!isValidHandle(agentName)) {
@@ -191,29 +196,41 @@ export async function POST(req) {
       await ensureTable();
       await sql`
         INSERT INTO site_links (
-          id, 
-          whatsapp_url, 
-          telegram_url, 
-          livechat_url, 
+          id,
+          whatsapp_url,
+          telegram_url,
+          livechat_url,
+          livechat_whatsapp_url,
           agent_name,
           whatsapp_enabled,
           telegram_enabled,
           livechat_enabled
         )
-        VALUES (1, ${whatsapp}, ${telegram}, ${livechat}, ${agentName}, ${whatsappEnabled}, ${telegramEnabled}, ${livechatEnabled})
+        VALUES (
+          1,
+          ${whatsapp},
+          ${telegram},
+          ${livechat},
+          ${livechatWhatsapp},
+          ${agentName},
+          ${whatsappEnabled},
+          ${telegramEnabled},
+          ${livechatEnabled}
+        )
         ON CONFLICT (id) DO UPDATE
-        SET 
-            whatsapp_url = EXCLUDED.whatsapp_url,
-            telegram_url = EXCLUDED.telegram_url,
-            livechat_url = EXCLUDED.livechat_url,
-            agent_name = EXCLUDED.agent_name,
-            whatsapp_enabled = EXCLUDED.whatsapp_enabled,
-            telegram_enabled = EXCLUDED.telegram_enabled,
-            livechat_enabled = EXCLUDED.livechat_enabled
+        SET
+          whatsapp_url = EXCLUDED.whatsapp_url,
+          telegram_url = EXCLUDED.telegram_url,
+          livechat_url = EXCLUDED.livechat_url,
+          livechat_whatsapp_url = EXCLUDED.livechat_whatsapp_url,
+          agent_name = EXCLUDED.agent_name,
+          whatsapp_enabled = EXCLUDED.whatsapp_enabled,
+          telegram_enabled = EXCLUDED.telegram_enabled,
+          livechat_enabled = EXCLUDED.livechat_enabled
       `;
       return NextResponse.json({ success: true });
     } catch (err) {
-      console.error("POST /site-links (update) failed:", err);
+      console.error("POST /api/admin (update) failed:", err);
       return NextResponse.json(
         { success: false, error: "Failed to update links" },
         { status: 500 }
