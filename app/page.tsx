@@ -672,9 +672,15 @@ export default async function Home() {
         </section>
 
         {/* NEW INTERACTIVE WIDGET (Conditionally rendered based on toggle) */}
-        {livechatEnabled && LIVECHAT_URL && (
-          <LiveChatWidget livechatUrl={LIVECHAT_URL} agentName={AGENT_NAME} />
-        )}
+        {livechatEnabled && (LIVECHAT_URL || LIVECHAT_WHATSAPP_URL) && (
+  <LiveChatWidget
+    telegramUrl={LIVECHAT_URL}
+    whatsappUrl={LIVECHAT_WHATSAPP_URL}
+    agentName={AGENT_NAME}
+    telegramEnabled={livechatEnabled}
+    whatsappEnabled={livechatEnabled}
+  />
+)}
 
         <section className="pillars">
           <div className="section-width">
