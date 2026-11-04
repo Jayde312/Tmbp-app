@@ -180,23 +180,28 @@ export default function LiveChatWidget({
             }
             .lc-message strong { color: #2dd4bf; }
 
-            .lc-btn {
+            .lc-actions {
               display: flex;
+              gap: 8px;
+            }
+
+            .lc-btn {
+              flex: 1;
+              display: inline-flex;
               align-items: center;
               justify-content: center;
-              gap: 10px;
-              width: 100%;
-              padding: 14px;
+              gap: 6px;
+              padding: 9px 14px;
               color: white;
-              border-radius: 12px;
+              border-radius: 999px;
               text-decoration: none;
-              font-size: 14px;
+              font-size: 13px;
               font-weight: 700;
               transition: all 0.2s;
               border: none;
               cursor: pointer;
+              white-space: nowrap;
             }
-            .lc-btn + .lc-btn { margin-top: 10px; }
 
             .lc-btn--telegram {
               background: #229ED9;
@@ -294,35 +299,37 @@ export default function LiveChatWidget({
 
             <div className="lc-body">
               <p className="lc-message">
-                Hi there! You'll be chatting with <strong>{displayName}</strong> Tap below to start the conversation on
+                Hi there! You'll be chatting with <strong>{displayName}</strong>. Tap below to start the conversation.
               </p>
             </div>
 
-            {hasTelegram && (
-              <a
-                href={telegramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="lc-btn lc-btn--telegram"
-                onClick={() => setIsOpen(false)}
-              >
-                <TelegramIcon size={18} />
-                <span>Telegram</span>
-              </a>
-            )}
+            <div className="lc-actions">
+              {hasTelegram && (
+                <a
+                  href={telegramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="lc-btn lc-btn--telegram"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <TelegramIcon size={16} />
+                  <span>Telegram</span>
+                </a>
+              )}
 
-            {hasWhatsApp && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="lc-btn lc-btn--whatsapp"
-                onClick={() => setIsOpen(false)}
-              >
-                <WhatsAppIcon size={18} />
-                <span> WhatsApp</span>
-              </a>
-            )}
+              {hasWhatsApp && (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="lc-btn lc-btn--whatsapp"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <WhatsAppIcon size={16} />
+                  <span>WhatsApp</span>
+                </a>
+              )}
+            </div>
           </div>
         )}
 
@@ -337,4 +344,4 @@ export default function LiveChatWidget({
       </div>
     </>
   );
-}
+    } 
