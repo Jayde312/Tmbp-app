@@ -294,7 +294,7 @@ export default function LiveChatWidget({
 
             <div className="lc-body">
               <p className="lc-message">
-                Chat with <strong>{displayName}</strong> — pick your preferred app below.
+                Chat with <strong>{displayName}</strong> on.
               </p>
             </div>
 
