@@ -1,119 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import styles from "./styles.module.css"; // Import the CSS module created above
 
-export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
+// --- Types & Interfaces ---
+interface LinkConfig {
+  url: string;
+  enabled: boolean;
+  label: string;
+  placeholder: string;
+  color: string;
+}
 
-  const [whatsapp, setWhatsapp] = useState("");
-  const [telegram, setTelegram] = useState("");
-  const [livechat, setLivechat] = useState("");
-  const [agentName, setAgentName] = useState("");
-  
-  // Visibility toggles
-  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
-  const [telegramEnabled, setTelegramEnabled] = useState(true);
-  const [livechatEnabled, setLivechatEnabled] = useState(true);
+interface SiteLinksData {
+  whatsapp: string;
+  telegram: string;
+  livechat: string;
+  agentName: string;
+  whatsappEnabled: boolean;
+  telegramEnabled: boolean;
+  livechatEnabled: boolean;
+  // Secondary fields added based on previous request
+  whatsappSecondary: string;
+  telegramSecondary: string;
+  whatsappSecondaryEnabled: boolean;
+  telegramSecondaryEnabled: boolean;
+}
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+// --- Color Palette Constants ---
+const COLORS = {
+  NAVY: "#111827",
+  GOLD: "#34d399",
+  WHATSAPP: "#25D366",
+  TELEGRAM: "#229ED9",
+  LIVECHAT: "#2dd4bf",
+};
 
-  useEffect(() => {
-    if (!authed) return;
-    fetch("/api/admin")
-      .then((res) => res.json())
-      .then((data) => {
-        setWhatsapp(data.whatsapp || "");
-        setTelegram(data.telegram || "");
-        setLivechat(data.livechat || "");
-        setAgentName(data.agentName || "");
-        
-        // Load visibility states (default to true if not yet present in DB)
-        setWhatsappEnabled(data.whatsappEnabled !== false);
-        setTelegramEnabled(data.telegramEnabled !== false);
-        setLivechatEnabled(data.livechatEnabled !== false);
-        
-        setLoading(false);
-      });
-  }, [authed]);
+// --- Sub-Components ---
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoginError("");
-    const res = await fetch("/api/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "login", password }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setAuthed(true);
-    } else {
-      setLoginError(data.error || "Login failed");
-    }
-  }
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setSaveMessage("");
-    const res = await fetch("/api/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update",
-        whatsapp,
-        telegram,
-        livechat,
-        agentName,
-        whatsappEnabled,
-        telegramEnabled,
-        livechatEnabled,
-      }),
-    });
-    const data = await res.json();
-    setSaving(false);
-    setSaveMessage(data.success ? "Saved!" : data.error || "Failed to save");
-  }
-
-  const navy = "#111827";
-  const navyLight = "#1a2234";
-  const gold = "#34d399";
-  const goldLight = "#6ee7b7";
-  const text = "#e5e7eb";
-  const textMuted = "#9ca3af";
-  const line = "#374151";
-  const error = "#EF4444";
-  const success = "#25D366";
-  const whatsappColor = "#25D366";
-  const telegramColor = "#229ED9";
-  const livechatColor = "#2dd4bf";
-
-  // --- Custom Toggle Switch Component ---
-  const ToggleSwitch = ({
-    checked,
-    onChange,
-    color,
-  }: {
-    checked: boolean;
-    onChange: (val: boolean) => void;
-    color: string;
-  }) => (
+/**
+ * Reusable Toggle Switch
+ */
+function ToggleSwitch({ 
+  checked, 
+  onChange, 
+  color 
+}: { 
+  checked: boolean; 
+  onChange: (val: boolean) => void; 
+  color: string;
+}) {
+  return (
     <div
       onClick={() => onChange(!checked)}
       style={{
         width: 36,
         height: 20,
         borderRadius: 10,
-        background: checked ? color : line,
+        background: checked ? color : "#374151",
         position: "relative",
         cursor: "pointer",
         transition: "background 0.2s ease",
         flexShrink: 0,
       }}
+      role="switch"
+      aria-checked={checked}
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onChange(!checked)}
     >
       <div
         style={{
@@ -130,135 +83,217 @@ export default function AdminPage() {
       />
     </div>
   );
+}
 
-  // --- Login Screen ---
+/**
+ * Reusable Input Field with Label and Toggle
+ */
+function LabeledInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  enabled,
+  onToggleChange,
+  toggleColor,
+  disabledStyle = false
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  enabled?: boolean;
+  onToggleChange?: (val: boolean) => void;
+  toggleColor?: string;
+  disabledStyle?: boolean;
+}) {
+  const isDisabledVisual = disabledStyle || (enabled !== undefined && !enabled);
+
+  return (
+    <div className={styles.inputGroup}>
+      <div className={styles.labelRow}>
+        <label htmlFor={id} className={styles.labelText}>
+          {toggleColor && <span className={styles.dot} style={{ backgroundColor: toggleColor }} />}
+          {label}
+        </label>
+        {onToggleChange && toggleColor && (
+          <ToggleSwitch 
+            checked={!!enabled} 
+            onChange={onToggleChange} 
+            color={toggleColor} 
+          />
+        )}
+      </div>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`${styles.textInput} ${isDisabledVisual ? styles.disabled : ""}`}
+        disabled={isDisabledVisual}
+      />
+    </div>
+  );
+}
+
+// --- Main Page Component ---
+
+export default function AdminPage() {
+  // State
+  const [authed, setAuthed] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{type: 'success'|'error', msg: string}|null>(null);
+
+  // Form Data State
+  const [formData, setFormData] = useState<SiteLinksData>({
+    whatsapp: "",
+    telegram: "",
+    livechat: "",
+    agentName: "",
+    whatsappEnabled: true,
+    telegramEnabled: true,
+    livechatEnabled: true,
+    whatsappSecondary: "",
+    telegramSecondary: "",
+    whatsappSecondaryEnabled: false,
+    telegramSecondaryEnabled: false,
+  });
+
+  // Effects
+  useEffect(() => {
+    if (!authed) return;
+    
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/admin");
+        const data = await res.json();
+        
+        setFormData({
+          whatsapp: data.whatsapp || "",
+          telegram: data.telegram || "",
+          livechat: data.livechat || "",
+          agentName: data.agentName || "",
+          whatsappEnabled: data.whatsappEnabled ?? true,
+          telegramEnabled: data.telegramEnabled ?? true,
+          livechatEnabled: data.livechatEnabled ?? true,
+          whatsappSecondary: data.whatsappSecondary || "",
+          telegramSecondary: data.telegramSecondary || "",
+          whatsappSecondaryEnabled: data.whatsappSecondaryEnabled ?? false,
+          telegramSecondaryEnabled: data.telegramSecondaryEnabled ?? false,
+        });
+      } catch (err) {
+        console.error("Failed to load config", err);
+        setSaveMessage({ type: 'error', msg: "Failed to load configuration" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [authed]);
+
+  // Handlers
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setSaving(true); // Reuse saving state for button feedback
+    
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", password }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setAuthed(true);
+      } else {
+        setLoginError(data.error || "Login failed");
+      }
+    } catch {
+      setLoginError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          ...formData, // Send all fields
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSaveMessage({ type: 'success', msg: "Changes saved successfully" });
+      } else {
+        setSaveMessage({ type: 'error', msg: data.error || "Failed to save" });
+      }
+    } catch {
+      setSaveMessage({ type: 'error', msg: "Network error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateField = useCallback((field: keyof SiteLinksData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Render Helpers
   if (!authed) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: navy,
-          padding: "32px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 380,
-            width: "100%",
-            margin: "0 auto",
-            background: navyLight,
-            padding: "32px 24px",
-            borderRadius: 12,
-            border: `1px solid ${line}`,
-          }}
-        >
-          {/* Header */}
+      <div className={styles.container}>
+        <div className={`${styles.card} ${styles.loginCard}`}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                border: `1px solid ${gold}`,
-                color: goldLight,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 16,
-                fontFamily: "var(--font-display), serif",
-                fontSize: 20,
-                fontWeight: 700,
-              }}
-            >
-              S
-            </div>
-            <h1
-              style={{
-                fontFamily: "var(--font-display), serif",
-                color: text,
-                fontSize: 24,
-                margin: "0 0 6px",
-                fontWeight: 600,
-              }}
-            >
-              Admin Portal
-            </h1>
-            <p style={{ color: textMuted, fontSize: 13, margin: 0 }}>
-              TheSmartMoneyBlueprint
-            </p>
+            <div className={styles.logoCircle}>S</div>
+            <h1 className={styles.mainTitle} style={{ fontSize: 24, marginBottom: 6 }}>Admin Portal</h1>
+            <p className={styles.subtitle}>TheSmartMoneyBlueprint</p>
           </div>
 
           <form onSubmit={handleLogin}>
-            <label
-              style={{
-                display: "block",
-                color: textMuted,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "1.5px",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 8,
-                border: `1px solid ${line}`,
-                background: navy,
-                color: text,
-                fontSize: 15,
-                outline: "none",
-                boxSizing: "border-box",
-                marginBottom: 16,
-              }}
-            />
+             <div className={styles.inputGroup}>
+                <label className={styles.labelText} style={{ justifyContent: 'flex-start' }}>Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className={styles.textInput}
+                />
+             </div>
 
             {loginError && (
-              <div
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  background: "rgba(239, 68, 68, 0.1)",
-                  border: `1px solid rgba(239, 68, 68, 0.2)`,
-                  color: error,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
+              <div className={`${styles.messageBox} ${styles.errorMsg}`} style={{ marginTop: 16 }}>
                 {loginError}
               </div>
             )}
 
             <button
               type="submit"
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: 8,
-                border: "none",
-                background: gold,
-                color: navy,
-                fontWeight: 800,
-                fontSize: 13,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
+              disabled={saving}
+              className={styles.submitBtn}
+              style={{ marginTop: 16 }}
             >
-              Authenticate
+              {saving ? "Authenticating..." : "Authenticate"}
             </button>
           </form>
         </div>
@@ -266,381 +301,124 @@ export default function AdminPage() {
     );
   }
 
-  // --- Dashboard ---
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: navy,
-        padding: "32px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 480,
-          width: "100%",
-          margin: "0 auto",
-          background: navyLight,
-          padding: "28px 24px",
-          borderRadius: 12,
-          border: `1px solid ${line}`,
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: `1px solid ${line}`,
-            paddingBottom: 16,
-            marginBottom: 20,
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                color: success,
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: "1.5px",
-                textTransform: "uppercase",
-                marginBottom: 6,
-              }}
-            >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: success,
-                }}
-              />
+    <div className={styles.container}>
+      <div className={styles.card}>
+        {/* Header Section */}
+        <div className={styles.header}>
+          <div className={styles.titleGroup}>
+            <div className={styles.statusBadge}>
+              <span className={styles.dot} />
               Authenticated
             </div>
-            <h1
-              style={{
-                fontFamily: "var(--font-display), serif",
-                color: text,
-                fontSize: 22,
-                margin: 0,
-                fontWeight: 600,
-              }}
-            >
-              Edit Community Links
-            </h1>
+            <h1 className={styles.mainTitle}>Edit Community Links</h1>
           </div>
-
-          <button
-            onClick={() => setAuthed(false)}
-            style={{
-              background: "transparent",
-              border: `1px solid ${line}`,
-              color: textMuted,
-              padding: "6px 12px",
-              borderRadius: 6,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => setAuthed(false)} className={styles.lockBtn}>
             Lock
           </button>
         </div>
 
-        {loading ? (
-          <div
-            style={{
-              padding: "32px 0",
-              textAlign: "center",
-              color: textMuted,
-              fontSize: 14,
-            }}
-          >
-            <div
-              style={{
-                width: 20,
-                height: 20,
-                border: `2px solid ${line}`,
-                borderTopColor: gold,
-                borderRadius: "50%",
-                margin: "0 auto 10px",
-                animation: "spin 0.8s linear infinite",
-              }}
-            />
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `@keyframes spin { to { transform: rotate(360deg); } }`,
-              }}
-            />
-            Retrieving database values...
-          </div>
-        ) : (
-          <form onSubmit={handleSave}>
-            {/* WhatsApp URL */}
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: whatsappColor,
-                    }}
-                  />
-                  WhatsApp Group URL
-                </div>
-                <ToggleSwitch
-                  checked={whatsappEnabled}
-                  onChange={setWhatsappEnabled}
-                  color={whatsappColor}
-                />
-              </label>
-              <input
-                type="text"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
+        {/* Body Section */}
+        <div className={styles.formBody}>
+          {loading ? (
+            <div style={{ padding: "32px 0", textAlign: "center", color: "#9ca3af" }}>
+              <div className={styles.loadingSpinner} />
+              Retrieving database values...
+            </div>
+          ) : (
+            <form onSubmit={handleSave}>
+              
+              {/* Primary WhatsApp */}
+              <LabeledInput
+                id="primary-whatsapp"
+                label="Primary WhatsApp Group URL"
+                value={formData.whatsapp}
+                onChange={(v) => updateField('whatsapp', v)}
                 placeholder="https://wa.link/..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: whatsappEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+                enabled={formData.whatsappEnabled}
+                onToggleChange={(v) => updateField('whatsappEnabled', v)}
+                toggleColor={COLORS.WHATSAPP}
               />
-            </div>
 
-            {/* Telegram URL */}
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: telegramColor,
-                    }}
-                  />
-                  Telegram Channel URL
-                </div>
-                <ToggleSwitch
-                  checked={telegramEnabled}
-                  onChange={setTelegramEnabled}
-                  color={telegramColor}
-                />
-              </label>
-              <input
-                type="text"
-                value={telegram}
-                onChange={(e) => setTelegram(e.target.value)}
+              {/* Secondary WhatsApp */}
+              <LabeledInput
+                id="secondary-whatsapp"
+                label="Secondary WhatsApp Group URL"
+                value={formData.whatsappSecondary}
+                onChange={(v) => updateField('whatsappSecondary', v)}
+                placeholder="https://wa.link/... (Optional)"
+                enabled={formData.whatsappSecondaryEnabled}
+                onToggleChange={(v) => updateField('whatsappSecondaryEnabled', v)}
+                toggleColor={COLORS.WHATSAPP}
+              />
+
+               {/* Primary Telegram */}
+               <LabeledInput
+                id="primary-telegram"
+                label="Primary Telegram Channel URL"
+                value={formData.telegram}
+                onChange={(v) => updateField('telegram', v)}
                 placeholder="https://t.me/..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: telegramEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+                enabled={formData.telegramEnabled}
+                onToggleChange={(v) => updateField('telegramEnabled', v)}
+                toggleColor={COLORS.TELEGRAM}
               />
-            </div>
 
-            {/* Live Chat URL */}
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: livechatColor,
-                    }}
-                  />
-                  Live Chat URL
-                </div>
-                <ToggleSwitch
-                  checked={livechatEnabled}
-                  onChange={setLivechatEnabled}
-                  color={livechatColor}
-                />
-              </label>
-              <input
-                type="text"
-                value={livechat}
-                onChange={(e) => setLivechat(e.target.value)}
-                placeholder="https://t.me/... (live chat bot or group)"
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: livechatEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+              {/* Secondary Telegram */}
+              <LabeledInput
+                id="secondary-telegram"
+                label="Secondary Telegram Channel URL"
+                value={formData.telegramSecondary}
+                onChange={(v) => updateField('telegramSecondary', v)}
+                placeholder="https://t.me/... (Optional)"
+                enabled={formData.telegramSecondaryEnabled}
+                onToggleChange={(v) => updateField('telegramSecondaryEnabled', v)}
+                toggleColor={COLORS.TELEGRAM}
               />
-            </div>
 
-            {/* Agent Name */}
-            <div style={{ marginBottom: 20 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: livechatColor,
-                  }}
-                />
-                Agent Name
-              </label>
-              <input
-                type="text"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-                placeholder="Enter live chat agent name"
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${line}`,
-                  background: navy,
-                  color: text,
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  opacity: livechatEnabled ? 1 : 0.5,
-                  transition: "opacity 0.2s ease",
-                }}
+              {/* Live Chat */}
+              <LabeledInput
+                id="livechat-url"
+                label="Live Chat URL"
+                value={formData.livechat}
+                onChange={(v) => updateField('livechat', v)}
+                placeholder="https://t.me/... (bot/group)"
+                enabled={formData.livechatEnabled}
+                onToggleChange={(v) => updateField('livechatEnabled', v)}
+                toggleColor={COLORS.LIVECHAT}
               />
-            </div>
 
-            {/* Save Button */}
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: 8,
-                border: "none",
-                background: gold,
-                color: navy,
-                fontWeight: 800,
-                fontSize: 13,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-                cursor: saving ? "default" : "pointer",
-                opacity: saving ? 0.6 : 1,
-              }}
-            >
-              {saving ? "Updating..." : "Save Changes"}
-            </button>
+              {/* Agent Name */}
+              <LabeledInput
+                id="agent-name"
+                label="Agent Display Name"
+                value={formData.agentName}
+                onChange={(v) => updateField('agentName', v)}
+                placeholder="e.g., Support Bot Alpha"
+                enabled={formData.livechatEnabled} // Tied to livechat visibility usually
+                // No toggle here, just input
+              />
 
-            {/* Status */}
-            {saveMessage && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "12px",
-                  borderRadius: 8,
-                  background:
-                    saveMessage === "Saved!"
-                      ? "rgba(37, 211, 102, 0.1)"
-                      : "rgba(239, 68, 68, 0.1)",
-                  border: `1px solid ${
-                    saveMessage === "Saved!"
-                      ? "rgba(37, 211, 102, 0.2)"
-                      : "rgba(239, 68, 68, 0.2)"
-                  }`,
-                  color: saveMessage === "Saved!" ? success : error,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  textAlign: "center",
-                }}
-              >
-                {saveMessage === "Saved!"
-                  ? "✓ Changes saved successfully"
-                  : saveMessage}
+              {/* Submit Area */}
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className={styles.submitBtn}
+                >
+                  {saving ? "Updating..." : "Save Changes"}
+                </button>
+
+                {saveMessage && (
+                  <div className={`${styles.messageBox} ${saveMessage.type === 'success' ? styles.successMsg : styles.errorMsg}`}>
+                    {saveMessage.msg}
+                  </div>
+                )}
               </div>
-            )}
-          </form>
-        )}
+
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
