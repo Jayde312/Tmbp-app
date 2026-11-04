@@ -36,32 +36,33 @@ function CloseIcon({ size = 16 }: { size?: number }) {
 }
 
 interface LiveChatWidgetProps {
-  livechatUrl: string;
+  /** Livechat Telegram URL (e.g. https://t.me/yourhandle) */
+  telegramUrl: string;
+  /** Livechat WhatsApp URL (e.g. https://wa.me/1234567890) */
+  whatsappUrl: string;
   agentName: string;
-  /** NEW: WhatsApp URL. Widget hides the WhatsApp button if omitted/empty. */
-  whatsappUrl?: string;
-  /** NEW: Whether the WhatsApp channel is enabled. Defaults to true. */
+  /** Toggle the Telegram button on/off. Defaults to true. */
+  telegramEnabled?: boolean;
+  /** Toggle the WhatsApp button on/off. Defaults to true. */
   whatsappEnabled?: boolean;
-  /** Whether the Telegram channel (backed by livechatUrl) is enabled. Defaults to true. */
-  livechatEnabled?: boolean;
 }
 
 export default function LiveChatWidget({
-  livechatUrl,
+  telegramUrl,
+  whatsappUrl,
   agentName,
-  whatsappUrl = "",
+  telegramEnabled = true,
   whatsappEnabled = true,
-  livechatEnabled = true,
 }: LiveChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Fallback to "our support team" if the admin hasn't set a name yet
-  const displayName = agentName && agentName.trim() !== "" ? agentName : "our support team";
+  const displayName =
+    agentName && agentName.trim() !== "" ? agentName : "our support team";
 
-  const hasTelegram = livechatEnabled && livechatUrl.trim() !== "";
+  const hasTelegram = telegramEnabled && telegramUrl.trim() !== "";
   const hasWhatsApp = whatsappEnabled && whatsappUrl.trim() !== "";
 
-  // Don't render anything if no channel is configured
+  // Nothing configured → render nothing
   if (!hasTelegram && !hasWhatsApp) return null;
 
   return (
@@ -96,7 +97,7 @@ export default function LiveChatWidget({
             }
 
             @keyframes lc-popIn {
-              0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+              0%   { opacity: 0; transform: scale(0.9) translateY(10px); }
               100% { opacity: 1; transform: scale(1) translateY(0); }
             }
 
@@ -116,11 +117,7 @@ export default function LiveChatWidget({
               cursor: pointer;
               transition: all 0.2s;
             }
-
-            .lc-close:hover {
-              background: rgba(255, 255, 255, 0.1);
-              color: #fff;
-            }
+            .lc-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
             .lc-header {
               display: flex;
@@ -158,7 +155,6 @@ export default function LiveChatWidget({
               gap: 6px;
               font-weight: 600;
             }
-
             .lc-subtitle::before {
               content: "";
               width: 6px;
@@ -182,12 +178,8 @@ export default function LiveChatWidget({
               line-height: 1.5;
               color: #e0f2f1;
             }
+            .lc-message strong { color: #2dd4bf; }
 
-            .lc-message strong {
-              color: #2dd4bf;
-            }
-
-            /* Shared button base */
             .lc-btn {
               display: flex;
               align-items: center;
@@ -204,12 +196,8 @@ export default function LiveChatWidget({
               border: none;
               cursor: pointer;
             }
+            .lc-btn + .lc-btn { margin-top: 10px; }
 
-            .lc-btn + .lc-btn {
-              margin-top: 10px;
-            }
-
-            /* Telegram */
             .lc-btn--telegram {
               background: #229ED9;
               box-shadow: 0 4px 14px rgba(34, 158, 217, 0.4);
@@ -220,7 +208,6 @@ export default function LiveChatWidget({
               box-shadow: 0 6px 20px rgba(34, 158, 217, 0.5);
             }
 
-            /* WhatsApp */
             .lc-btn--whatsapp {
               background: #25D366;
               box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4);
@@ -247,7 +234,6 @@ export default function LiveChatWidget({
               position: relative;
               z-index: 101;
             }
-
             .lc-trigger:hover {
               transform: scale(1.05);
               box-shadow: 0 12px 35px rgba(45, 212, 191, 0.5);
@@ -258,45 +244,28 @@ export default function LiveChatWidget({
               border: 1px solid rgba(45, 212, 191, 0.3);
               box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             }
-            
-            .lc-trigger.is-open:hover {
-              background: #132444;
-            }
+            .lc-trigger.is-open:hover { background: #132444; }
 
             .lc-pulse {
               position: absolute;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
+              top: 0; left: 0;
+              width: 100%; height: 100%;
               border-radius: 50%;
               background: rgba(45, 212, 191, 0.4);
               z-index: -1;
               animation: lc-pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
             }
-            
-            .lc-trigger.is-open .lc-pulse {
-              display: none;
-            }
+            .lc-trigger.is-open .lc-pulse { display: none; }
 
             @keyframes lc-pulse-ring {
-              0% { transform: scale(0.8); opacity: 0.8; }
-              80%, 100% { transform: scale(1.4); opacity: 0; }
+              0%        { transform: scale(0.8); opacity: 0.8; }
+              80%, 100% { transform: scale(1.4); opacity: 0;   }
             }
 
             @media (max-width: 480px) {
-              .lc-widget {
-                right: 16px;
-                bottom: 16px;
-              }
-              .lc-card {
-                width: calc(100vw - 40px);
-                max-width: 320px;
-              }
-              .lc-trigger {
-                width: 56px;
-                height: 56px;
-              }
+              .lc-widget { right: 16px; bottom: 16px; }
+              .lc-card   { width: calc(100vw - 40px); max-width: 320px; }
+              .lc-trigger{ width: 56px; height: 56px; }
             }
           `,
         }}
@@ -312,6 +281,7 @@ export default function LiveChatWidget({
             >
               <CloseIcon />
             </button>
+
             <div className="lc-header">
               <div className="lc-avatar">
                 <ChatIcon size={22} />
@@ -330,7 +300,7 @@ export default function LiveChatWidget({
 
             {hasTelegram && (
               <a
-                href={livechatUrl}
+                href={telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="lc-btn lc-btn--telegram"
