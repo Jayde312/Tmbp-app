@@ -1,17 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import styles from "./styles.module.css"; // Import the CSS module created above
+import styles from "./styles.module.css";
 
 // --- Types & Interfaces ---
-interface LinkConfig {
-  url: string;
-  enabled: boolean;
-  label: string;
-  placeholder: string;
-  color: string;
-}
-
 interface SiteLinksData {
   whatsapp: string;
   telegram: string;
@@ -20,14 +12,13 @@ interface SiteLinksData {
   whatsappEnabled: boolean;
   telegramEnabled: boolean;
   livechatEnabled: boolean;
-  // Secondary fields added based on previous request
+  // Secondary fields
   whatsappSecondary: string;
   telegramSecondary: string;
   whatsappSecondaryEnabled: boolean;
   telegramSecondaryEnabled: boolean;
 }
 
-// --- Color Palette Constants ---
 const COLORS = {
   NAVY: "#111827",
   GOLD: "#34d399",
@@ -38,9 +29,6 @@ const COLORS = {
 
 // --- Sub-Components ---
 
-/**
- * Reusable Toggle Switch
- */
 function ToggleSwitch({ 
   checked, 
   onChange, 
@@ -85,9 +73,6 @@ function ToggleSwitch({
   );
 }
 
-/**
- * Reusable Input Field with Label and Toggle
- */
 function LabeledInput({
   id,
   label,
@@ -97,7 +82,7 @@ function LabeledInput({
   enabled,
   onToggleChange,
   toggleColor,
-  disabledStyle = false
+  subLabel
 }: {
   id: string;
   label: string;
@@ -107,16 +92,17 @@ function LabeledInput({
   enabled?: boolean;
   onToggleChange?: (val: boolean) => void;
   toggleColor?: string;
-  disabledStyle?: boolean;
+  subLabel?: string; // For "Primary" vs "Secondary" hints
 }) {
-  const isDisabledVisual = disabledStyle || (enabled !== undefined && !enabled);
+  const isDisabledVisual = enabled !== undefined && !enabled;
 
   return (
     <div className={styles.inputGroup}>
       <div className={styles.labelRow}>
         <label htmlFor={id} className={styles.labelText}>
           {toggleColor && <span className={styles.dot} style={{ backgroundColor: toggleColor }} />}
-          {label}
+          <span>{label}</span>
+          {subLabel && <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 4 }}>{subLabel}</span>}
         </label>
         {onToggleChange && toggleColor && (
           <ToggleSwitch 
@@ -139,10 +125,19 @@ function LabeledInput({
   );
 }
 
+// Helper for Section Headers
+function SectionDivider({ title }: { title: string }) {
+  return (
+    <div className={styles.sectionHeader}>
+      <span className={styles.sectionTitle}>{title}</span>
+      <div className={styles.sectionLine} />
+    </div>
+  );
+}
+
 // --- Main Page Component ---
 
 export default function AdminPage() {
-  // State
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -151,7 +146,6 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{type: 'success'|'error', msg: string}|null>(null);
 
-  // Form Data State
   const [formData, setFormData] = useState<SiteLinksData>({
     whatsapp: "",
     telegram: "",
@@ -166,7 +160,6 @@ export default function AdminPage() {
     telegramSecondaryEnabled: false,
   });
 
-  // Effects
   useEffect(() => {
     if (!authed) return;
     
@@ -199,11 +192,10 @@ export default function AdminPage() {
     fetchData();
   }, [authed]);
 
-  // Handlers
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
-    setSaving(true); // Reuse saving state for button feedback
+    setSaving(true); 
     
     try {
       const res = await fetch("/api/admin", {
@@ -236,7 +228,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "update",
-          ...formData, // Send all fields
+          ...formData,
         }),
       });
       const data = await res.json();
@@ -328,85 +320,94 @@ export default function AdminPage() {
           ) : (
             <form onSubmit={handleSave}>
               
-              {/* Primary WhatsApp */}
-              <LabeledInput
-                id="primary-whatsapp"
-                label="Primary WhatsApp Group URL"
-                value={formData.whatsapp}
-                onChange={(v) => updateField('whatsapp', v)}
-                placeholder="https://wa.link/..."
-                enabled={formData.whatsappEnabled}
-                onToggleChange={(v) => updateField('whatsappEnabled', v)}
-                toggleColor={COLORS.WHATSAPP}
-              />
+              {/* ================= GROUP 1: WHATSAPP ================= */}
+              <SectionDivider title="WhatsApp Channels" />
+              <div className={styles.groupContainer}>
+                <LabeledInput
+                  id="primary-whatsapp"
+                  label="Primary Group"
+                  subLabel="(Main)"
+                  value={formData.whatsapp}
+                  onChange={(v) => updateField('whatsapp', v)}
+                  placeholder="https://wa.link/..."
+                  enabled={formData.whatsappEnabled}
+                  onToggleChange={(v) => updateField('whatsappEnabled', v)}
+                  toggleColor={COLORS.WHATSAPP}
+                />
 
-              {/* Secondary WhatsApp */}
-              <LabeledInput
-                id="secondary-whatsapp"
-                label="Secondary WhatsApp Group URL"
-                value={formData.whatsappSecondary}
-                onChange={(v) => updateField('whatsappSecondary', v)}
-                placeholder="https://wa.link/... (Optional)"
-                enabled={formData.whatsappSecondaryEnabled}
-                onToggleChange={(v) => updateField('whatsappSecondaryEnabled', v)}
-                toggleColor={COLORS.WHATSAPP}
-              />
+                <LabeledInput
+                  id="secondary-whatsapp"
+                  label="Secondary Group"
+                  subLabel="(Backup/VIP)"
+                  value={formData.whatsappSecondary}
+                  onChange={(v) => updateField('whatsappSecondary', v)}
+                  placeholder="https://wa.link/... (Optional)"
+                  enabled={formData.whatsappSecondaryEnabled}
+                  onToggleChange={(v) => updateField('whatsappSecondaryEnabled', v)}
+                  toggleColor={COLORS.WHATSAPP}
+                />
+              </div>
 
-               {/* Primary Telegram */}
-               <LabeledInput
-                id="primary-telegram"
-                label="Primary Telegram Channel URL"
-                value={formData.telegram}
-                onChange={(v) => updateField('telegram', v)}
-                placeholder="https://t.me/..."
-                enabled={formData.telegramEnabled}
-                onToggleChange={(v) => updateField('telegramEnabled', v)}
-                toggleColor={COLORS.TELEGRAM}
-              />
+              {/* ================= GROUP 2: TELEGRAM ================= */}
+              <SectionDivider title="Telegram Channels" />
+              <div className={styles.groupContainer}>
+                 <LabeledInput
+                  id="primary-telegram"
+                  label="Primary Channel"
+                  subLabel="(Public)"
+                  value={formData.telegram}
+                  onChange={(v) => updateField('telegram', v)}
+                  placeholder="https://t.me/..."
+                  enabled={formData.telegramEnabled}
+                  onToggleChange={(v) => updateField('telegramEnabled', v)}
+                  toggleColor={COLORS.TELEGRAM}
+                />
 
-              {/* Secondary Telegram */}
-              <LabeledInput
-                id="secondary-telegram"
-                label="Secondary Telegram Channel URL"
-                value={formData.telegramSecondary}
-                onChange={(v) => updateField('telegramSecondary', v)}
-                placeholder="https://t.me/... (Optional)"
-                enabled={formData.telegramSecondaryEnabled}
-                onToggleChange={(v) => updateField('telegramSecondaryEnabled', v)}
-                toggleColor={COLORS.TELEGRAM}
-              />
+                <LabeledInput
+                  id="secondary-telegram"
+                  label="Secondary Channel"
+                  subLabel="(Private/Beta)"
+                  value={formData.telegramSecondary}
+                  onChange={(v) => updateField('telegramSecondary', v)}
+                  placeholder="https://t.me/... (Optional)"
+                  enabled={formData.telegramSecondaryEnabled}
+                  onToggleChange={(v) => updateField('telegramSecondaryEnabled', v)}
+                  toggleColor={COLORS.TELEGRAM}
+                />
+              </div>
 
-              {/* Live Chat */}
-              <LabeledInput
-                id="livechat-url"
-                label="Live Chat URL"
-                value={formData.livechat}
-                onChange={(v) => updateField('livechat', v)}
-                placeholder="https://t.me/... (bot/group)"
-                enabled={formData.livechatEnabled}
-                onToggleChange={(v) => updateField('livechatEnabled', v)}
-                toggleColor={COLORS.LIVECHAT}
-              />
+              {/* ================= GROUP 3: SUPPORT / LIVE CHAT ================= */}
+              <SectionDivider title="Direct Support" />
+              <div className={styles.groupContainer}>
+                <LabeledInput
+                  id="livechat-url"
+                  label="Live Chat Link"
+                  value={formData.livechat}
+                  onChange={(v) => updateField('livechat', v)}
+                  placeholder="https://t.me/... or external link"
+                  enabled={formData.livechatEnabled}
+                  onToggleChange={(v) => updateField('livechatEnabled', v)}
+                  toggleColor={COLORS.LIVECHAT}
+                />
 
-              {/* Agent Name */}
-              <LabeledInput
-                id="agent-name"
-                label="Agent Display Name"
-                value={formData.agentName}
-                onChange={(v) => updateField('agentName', v)}
-                placeholder="e.g., Support Bot Alpha"
-                enabled={formData.livechatEnabled} // Tied to livechat visibility usually
-                // No toggle here, just input
-              />
+                <LabeledInput
+                  id="agent-name"
+                  label="Agent Display Name"
+                  value={formData.agentName}
+                  onChange={(v) => updateField('agentName', v)}
+                  placeholder="e.g., Sarah from Support"
+                  enabled={formData.livechatEnabled} 
+                />
+              </div>
 
               {/* Submit Area */}
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 24 }}>
                 <button
                   type="submit"
                   disabled={saving}
                   className={styles.submitBtn}
                 >
-                  {saving ? "Updating..." : "Save Changes"}
+                  {saving ? "Updating..." : "Save All Changes"}
                 </button>
 
                 {saveMessage && (
